@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -13,7 +15,22 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var genreCodes = []string{"15", "7", "3", "6", "132", "40", "22", "37"}
+var (
+	mustHearKeySegment = "must-hear"
+	popularKeySegment  = "popular"
+	allGenresCode      = "0"
+
+	sortByQueryKey                  = "sort"
+	userSortQueryValue              = "user"
+	minReviewsQueryKey              = "reviews"
+	minReviewsQueryValueAllGenres   = "500"
+	minReviewsQueryValueSingleGenre = "100"
+	genreQueryKey                   = "genre"
+
+	genreCodes = []string{"15", "7", "3", "6", "132", "40", "22", "37"}
+
+	totalScrapes = 55
+)
 
 func main() {
 	_ = godotenv.Load()
@@ -44,15 +61,21 @@ func main() {
 	page := browser.MustPage("https://www.albumoftheyear.org/")
 	defer page.MustClose()
 
+	scrapesDone := 0
+
 	initialURLS := createInitialURLS()
 
 	for filter, initialURL := range initialURLS {
-		scrapeURLs := []string{}
+		scrapeURLs := map[string]string{}
 
 		if filter == "new" {
-			scrapeURLs = append(scrapeURLs, initialURL)
+			scrapeURLs[filter] = initialURL
 		} else {
-			scrapeURLs = append(scrapeURLs, initialURL)
+			// starting scrape url key
+			keySegments := []string{filter, popularKeySegment, allGenresCode}
+
+			key := strings.Join(keySegments, "/")
+			scrapeURLs[key] = initialURL
 
 			u, err := url.Parse(initialURL)
 			if err != nil {
@@ -61,35 +84,43 @@ func main() {
 			}
 
 			q := u.Query()
-			q.Set("sort", "user")
-			q.Set("reviews", "500")
+			q.Set(sortByQueryKey, userSortQueryValue)
+			keySegments[1] = mustHearKeySegment
+			q.Set(minReviewsQueryKey, minReviewsQueryValueAllGenres)
 			u.RawQuery = q.Encode()
-			scrapeURLs = append(scrapeURLs, u.String())
+			key = strings.Join(keySegments, "/")
+			scrapeURLs[key] = u.String()
 
 			for i := range 2 {
 				switch i {
 				case 0:
-					q.Set("reviews", "100")
+					q.Set(minReviewsQueryKey, minReviewsQueryValueSingleGenre)
 				case 1:
-					q.Del("reviews")
-					q.Del("sort")
+					q.Del(minReviewsQueryKey)
+					q.Del(sortByQueryKey)
+					keySegments[1] = popularKeySegment
 				}
 				for _, genre := range genreCodes {
-					q.Set("genre", genre)
+					q.Set(genreQueryKey, genre)
+					keySegments[2] = genre
 					u.RawQuery = q.Encode()
 
-					scrapeURLs = append(scrapeURLs, u.String())
+					key = strings.Join(keySegments, "/")
+					scrapeURLs[key] = u.String()
 				}
 			}
 
 		}
 
-		for _, scrapeURL := range scrapeURLs {
-			err := scrapeAndCache(scrapeURL, filter, page, rdb)
+		for cacheKey, scrapeURL := range scrapeURLs {
+			err := scrapeAndCache(scrapeURL, cacheKey, filter, page, rdb)
 			if err != nil {
 				log.Println("Failed scrape and cache:", err)
 				continue
 			}
+
+			scrapesDone++
+			fmt.Printf("======================== %v/%v scrapes complete\n", scrapesDone, totalScrapes)
 
 			time.Sleep(2 * time.Second)
 		}

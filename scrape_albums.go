@@ -28,9 +28,9 @@ func scrapeAlbums(page *rod.Page, scrapeURLs []string) ([]Album, error) {
 			continue
 		}
 
-		log.Printf("Current number of pages running in browser: %v\n", len(page.Browser().MustPages()))
-		log.Printf("Page html: %v\n", page.MustHTML()[:100])
-		err = page.Timeout(2000*time.Millisecond).WaitElementsMoreThan(".albumBlock", 0)
+		// log.Printf("Current number of pages running in browser: %v\n", len(page.Browser().MustPages()))
+		// log.Printf("Page html: %v\n", page.MustHTML()[:100])
+		err = page.Timeout(2000*time.Millisecond).WaitElementsMoreThan(".albumBlock", 1)
 		if err != nil {
 			nErr++
 			fmt.Println("Elements failed to load on page")
@@ -55,10 +55,10 @@ func scrapeAlbums(page *rod.Page, scrapeURLs []string) ([]Album, error) {
 			}
 			totalAppended++
 			appendedFromPage++
-			fmt.Println("appended album element text to slice:", appendedFromPage)
 		}
 
 		fmt.Println("========= appended", appendedFromPage, "albums from page")
+		time.Sleep(500 * time.Millisecond)
 	}
 	fmt.Printf("%v/%v pages loaded elements successfully\n", len(scrapeURLs)-nErr, len(scrapeURLs))
 	if nErr >= len(scrapeURLs) {

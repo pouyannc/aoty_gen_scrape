@@ -17,7 +17,7 @@ type cachePayload struct {
 	Ts           int64   `json:"ts"`
 }
 
-func scrapeAndCache(scrapeURL string, filter string, page *rod.Page, rdb *redis.Client) error {
+func scrapeAndCache(scrapeURL string, scrapeKey string, filter string, page *rod.Page, rdb *redis.Client) error {
 	urls, err := createAllScrapeURLs(scrapeURL, filter)
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func scrapeAndCache(scrapeURL string, filter string, page *rod.Page, rdb *redis.
 	}
 
 	// cache scrapeData here
-	key := fmt.Sprintf("%s:%s:%s", cacheKey, scrapeURL, filter)
+	key := fmt.Sprintf("%s:%s", cacheKey, scrapeKey)
 	payload := cachePayload{
 		ScrapeAlbums: scrapeData,
 		Ts:           time.Now().Unix(),
@@ -43,6 +43,6 @@ func scrapeAndCache(scrapeURL string, filter string, page *rod.Page, rdb *redis.
 		return err
 	}
 
-	fmt.Printf("=========== Stored new item in Redis at key: %v\n", key)
+	fmt.Printf("======================== Stored new item in Redis at key: %v\n", key)
 	return nil
 }
