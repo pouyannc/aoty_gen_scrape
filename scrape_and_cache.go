@@ -43,6 +43,6 @@ func scrapeAndCache(scrapeURL string, scrapeKey string, filter string, page *rod
 		return err
 	}
 
-	fmt.Printf("======================== Stored new item in Redis at key: %v\n", key)
+	fmt.Printf("======================== Scraped %s and stored new item in Redis at key: %v\n", scrapeURL, key)
 	return nil
 }
